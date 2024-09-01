@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "module": "es2022",
+        "target": "ESNext",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+        "outDir": "./dist",
+    },
+"exclude": ["planning-poker-client"]
+}
