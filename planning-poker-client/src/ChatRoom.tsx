@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import io from 'socket.io-client';
 
 const socket = io('http://localhost:3000');
 
-const ChatRoom: React.FC = () => {
-  const [roomId, setRoomId] = useState('');
+interface ChatRoomProps {
+  room?: string;
+}
+
+const ChatRoom: React.FC<ChatRoomProps> = ({ room }) => {
+  const { roomId: urlRoomId } = useParams<{ roomId: string }>();
+  const navigate = useNavigate();
+  const [roomId, setRoomId] = useState(urlRoomId || '');
   const [currentRoom, setCurrentRoom] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<string[]>([]);
   const [vote, setVote] = useState('');
@@ -16,65 +23,84 @@ const ChatRoom: React.FC = () => {
   const [userList, setUserList] = useState<string[]>([]);
 
   useEffect(() => {
-    socket.on('roomCreated', (roomId: string) => {
+    if (urlRoomId) {
+      joinRoom(urlRoomId);
+      navigate('/room', { replace: true });
+    }
+  }, [urlRoomId, navigate]);
+
+  useEffect(() => {
+    const handleRoomCreated = (roomId: string) => {
       setCurrentRoom(roomId);
       setMessages((prevMessages) => [...prevMessages, `Room created: ${roomId}`]);
-    });
+    };
 
-    socket.on('userJoined', (message: string) => {
+    const handleUserJoined = (message: string) => {
       setMessages((prevMessages) => [...prevMessages, message]);
-    });
+    };
 
-    socket.on('newVote', (message: string) => {
+    const handleNewVote = (message: string) => {
       setMessages((prevMessages) => [...prevMessages, message]);
-    });
+    };
 
-    socket.on('userCount', (count: number) => {
+    const handleUserCount = (count: number) => {
       setUserCount(count);
-    });
+    };
 
-    socket.on('adminAssigned', (adminId: string) => {
+    const handleAdminAssigned = (adminId: string) => {
       setAdmin(adminId);
-    });
+    };
 
-    socket.on('votesRevealed', (votes: { [key: string]: string }) => {
+    const handleVotesRevealed = (votes: { [key: string]: string }) => {
       setVotes(votes);
-    });
+    };
 
-    socket.on('userKicked', (message: string) => {
+    const handleUserKicked = (message: string) => {
       setMessages((prevMessages) => [...prevMessages, message]);
-    });
+    };
 
-    socket.on('votesCleared', () => {
+    const handleVotesCleared = () => {
       setVotes({});
       setMessages((prevMessages) => [...prevMessages, 'Votes have been cleared']);
-    });
+    };
 
-    socket.on('userList', (users: string[]) => {
+    const handleUserList = (users: string[]) => {
       setUserList(users);
-    });
+    };
 
-    socket.on('kicked', (message: string) => {
+    const handleKicked = (message: string) => {
       setError(message);
       setCurrentRoom(undefined);
-    });
+    };
 
-    socket.on('error', (errorMessage: string) => {
+    const handleError = (errorMessage: string) => {
       setError(errorMessage);
-    });
+    };
+
+    socket.on('roomCreated', handleRoomCreated);
+    socket.on('userJoined', handleUserJoined);
+    socket.on('newVote', handleNewVote);
+    socket.on('userCount', handleUserCount);
+    socket.on('adminAssigned', handleAdminAssigned);
+    socket.on('votesRevealed', handleVotesRevealed);
+    socket.on('userKicked', handleUserKicked);
+    socket.on('votesCleared', handleVotesCleared);
+    socket.on('userList', handleUserList);
+    socket.on('kicked', handleKicked);
+    socket.on('error', handleError);
 
     return () => {
-      socket.off('roomCreated');
-      socket.off('userJoined');
-      socket.off('newVote');
-      socket.off('userCount');
-      socket.off('adminAssigned');
-      socket.off('votesRevealed');
-      socket.off('userKicked');
-      socket.off('votesCleared');
-      socket.off('userList');
-      socket.off('kicked');
-      socket.off('error');
+      socket.off('roomCreated', handleRoomCreated);
+      socket.off('userJoined', handleUserJoined);
+      socket.off('newVote', handleNewVote);
+      socket.off('userCount', handleUserCount);
+      socket.off('adminAssigned', handleAdminAssigned);
+      socket.off('votesRevealed', handleVotesRevealed);
+      socket.off('userKicked', handleUserKicked);
+      socket.off('votesCleared', handleVotesCleared);
+      socket.off('userList', handleUserList);
+      socket.off('kicked', handleKicked);
+      socket.off('error', handleError);
     };
   }, []);
 
@@ -83,10 +109,18 @@ const ChatRoom: React.FC = () => {
     socket.emit('createRoom', roomId);
   };
 
-  const joinRoom = () => {
+  const joinRoom = (roomId: string) => {
     setError(undefined);
-    socket.emit('joinRoom', roomId);
-    setCurrentRoom(roomId);
+    console.log(`Attempting to join room: ${roomId}`);
+    socket.emit('joinRoom', roomId, (response: { success: boolean; error?: string }) => {
+      if (response.success) {
+        console.log(`Successfully joined room: ${roomId}`);
+        setCurrentRoom(roomId);
+      } else {
+        console.error(`Failed to join room: ${response.error}`);
+        setError(response.error || 'Failed to join room');
+      }
+    });
   };
 
   const sendVote = () => {
@@ -105,57 +139,59 @@ const ChatRoom: React.FC = () => {
     socket.emit('clearVotes', currentRoom);
   };
 
+  const renderRoomDetails = () => (
+    <div>
+      <h2>Room: {currentRoom}</h2>
+      <p>Users connected: {userCount}</p>
+      <p>Admin: {admin}</p>
+      <ul>
+        {messages.map((message, index) => (
+          <li key={index}>{message}</li>
+        ))}
+      </ul>
+      <h3>Connected Users:</h3>
+      <ul>
+        {userList.map((userId) => (
+          <li key={userId}>{userId}</li>
+        ))}
+      </ul>
+      <input value={vote} onChange={(e) => setVote(e.target.value)} placeholder="Your vote" />
+      <button onClick={sendVote}>Send Vote</button>
+      {admin === socket.id && (
+        <div>
+          <button onClick={revealVotes}>Reveal Votes</button>
+          <input
+            value={userIdToKick}
+            onChange={(e) => setUserIdToKick(e.target.value)}
+            placeholder="User ID to kick"
+          />
+          <button onClick={kickUser}>Kick User</button>
+          <button onClick={clearVotes}>Clear Votes</button>
+        </div>
+      )}
+      {Object.keys(votes).length > 0 && (
+        <div>
+          <h3>Votes:</h3>
+          <ul>
+            {Object.entries(votes).map(([userId, userVote]) => (
+              <li key={userId}>{userId}: {userVote}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <h1>Chat Room</h1>
       <div>
         <input value={roomId} onChange={(e) => setRoomId(e.target.value)} placeholder="Room ID" />
         <button onClick={createRoom}>Create Room</button>
-        <button onClick={joinRoom}>Join Room</button>
+        <button onClick={() => joinRoom(roomId)}>Join Room</button>
       </div>
       {error && <p style={{ color: 'red' }}>{error}</p>}
-      {currentRoom && (
-        <div>
-          <h2>Room: {currentRoom}</h2>
-          <p>Users connected: {userCount}</p>
-          <p>Admin: {admin}</p>
-          <ul>
-            {messages.map((message, index) => (
-              <li key={index}>{message}</li>
-            ))}
-          </ul>
-          <h3>Connected Users:</h3>
-          <ul>
-            {userList.map((userId) => (
-              <li key={userId}>{userId}</li>
-            ))}
-          </ul>
-          <input value={vote} onChange={(e) => setVote(e.target.value)} placeholder="Your vote" />
-          <button onClick={sendVote}>Send Vote</button>
-          {admin === socket.id && (
-            <div>
-              <button onClick={revealVotes}>Reveal Votes</button>
-              <input
-                value={userIdToKick}
-                onChange={(e) => setUserIdToKick(e.target.value)}
-                placeholder="User ID to kick"
-              />
-              <button onClick={kickUser}>Kick User</button>
-              <button onClick={clearVotes}>Clear Votes</button>
-            </div>
-          )}
-          {Object.keys(votes).length > 0 && (
-            <div>
-              <h3>Votes:</h3>
-              <ul>
-                {Object.entries(votes).map(([userId, userVote]) => (
-                  <li key={userId}>{userId}: {userVote}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+      {currentRoom && renderRoomDetails()}
     </div>
   );
 };
