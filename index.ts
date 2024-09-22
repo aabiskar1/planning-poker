@@ -37,10 +37,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('joinRoom', (roomId) => {
+  socket.on('joinRoom', (roomId, callback) => {
     if (rooms[roomId] !== undefined) {
       if (rooms[roomId].has(socket.id)) {
-        socket.emit('error', 'You are already connected to this room');
+        callback({ success: false, error: 'You are already connected to this room' });
       } else {
         rooms[roomId].add(socket.id);
         socket.join(roomId);
@@ -48,11 +48,18 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('userJoined', `User ${socket.id} has joined the room.`);
         io.to(roomId).emit('userCount', rooms[roomId].size);
         io.to(roomId).emit('userList', Array.from(rooms[roomId])); // Send the updated list of users
+        callback({ success: true });
       }
     } else {
-      socket.emit('error', 'Room does not exist');
+      callback({ success: false, error: 'Room does not exist' });
     }
   });
+
+  socket.on('getActiveRooms', () => {
+    const activeRooms = Object.keys(rooms);
+    socket.emit('activeRooms', activeRooms);
+  });
+
 
   socket.on('vote', (roomId: string, vote: string) => {
     if (rooms[roomId] && rooms[roomId].has(socket.id)) {
