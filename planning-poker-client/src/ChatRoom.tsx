@@ -140,41 +140,49 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ room }) => {
   };
 
   const renderRoomDetails = () => (
-    <div>
-      <h2>Room: {currentRoom}</h2>
-      <p>Users connected: {userCount}</p>
-      <p>Admin: {admin}</p>
-      <ul>
+    <div className="p-4 bg-white rounded shadow-md">
+      <h2 className="text-xl font-bold mb-2">Room: {currentRoom}</h2>
+      <p className="mb-2">Users connected: {userCount}</p>
+      <p className="mb-2">Admin: {admin}</p>
+      <ul className="mb-4">
         {messages.map((message, index) => (
-          <li key={index}>{message}</li>
+          <li key={index} className="mb-1">{message}</li>
         ))}
       </ul>
-      <h3>Connected Users:</h3>
-      <ul>
+      <h3 className="text-lg font-semibold mb-2">Connected Users:</h3>
+      <ul className="mb-4">
         {userList.map((userId) => (
-          <li key={userId}>{userId}</li>
+          <li key={userId} className="mb-1">{userId}</li>
         ))}
       </ul>
-      <input value={vote} onChange={(e) => setVote(e.target.value)} placeholder="Your vote" />
-      <button onClick={sendVote}>Send Vote</button>
+      <div className="mb-4">
+        <input
+          value={vote}
+          onChange={(e) => setVote(e.target.value)}
+          placeholder="Your vote"
+          className="border p-2 rounded w-full mb-2"
+        />
+        <button onClick={sendVote} className="bg-blue-500 text-white px-4 py-2 rounded">Send Vote</button>
+      </div>
       {admin === socket.id && (
-        <div>
-          <button onClick={revealVotes}>Reveal Votes</button>
+        <div className="mb-4">
+          <button onClick={revealVotes} className="bg-green-500 text-white px-4 py-2 rounded mb-2">Reveal Votes</button>
           <input
             value={userIdToKick}
             onChange={(e) => setUserIdToKick(e.target.value)}
             placeholder="User ID to kick"
+            className="border p-2 rounded w-full mb-2"
           />
-          <button onClick={kickUser}>Kick User</button>
-          <button onClick={clearVotes}>Clear Votes</button>
+          <button onClick={kickUser} className="bg-red-500 text-white px-4 py-2 rounded mb-2">Kick User</button>
+          <button onClick={clearVotes} className="bg-yellow-500 text-white px-4 py-2 rounded">Clear Votes</button>
         </div>
       )}
       {Object.keys(votes).length > 0 && (
         <div>
-          <h3>Votes:</h3>
+          <h3 className="text-lg font-semibold mb-2">Votes:</h3>
           <ul>
             {Object.entries(votes).map(([userId, userVote]) => (
-              <li key={userId}>{userId}: {userVote}</li>
+              <li key={userId} className="mb-1">{userId}: {userVote}</li>
             ))}
           </ul>
         </div>
@@ -183,14 +191,19 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ room }) => {
   );
 
   return (
-    <div>
-      <h1>Chat Room</h1>
-      <div>
-        <input value={roomId} onChange={(e) => setRoomId(e.target.value)} placeholder="Room ID" />
-        <button onClick={createRoom}>Create Room</button>
-        <button onClick={() => joinRoom(roomId)}>Join Room</button>
+    <div className="p-4 bg-gray-100 min-h-screen">
+      <h1 className="text-2xl font-bold mb-4">Chat Room</h1>
+      <div className="mb-4">
+        <input
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value)}
+          placeholder="Room ID"
+          className="border p-2 rounded w-full mb-2"
+        />
+        <button onClick={createRoom} className="bg-blue-500 text-white px-4 py-2 rounded mb-2">Create Room</button>
+        <button onClick={() => joinRoom(roomId)} className="bg-green-500 text-white px-4 py-2 rounded">Join Room</button>
       </div>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className="text-red-500 mb-4">{error}</p>}
       {currentRoom && renderRoomDetails()}
     </div>
   );
